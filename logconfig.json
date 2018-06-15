@@ -1,0 +1,7 @@
+{
+	"logfilename" : "log",
+	"loglevel" : "INFO",
+	"logfolder" : "log",
+	"enabled" : true,
+	"outputfolder" : "outputs"
+}
