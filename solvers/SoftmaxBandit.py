@@ -1,33 +1,32 @@
-"""
-Created on May 7, 2017
+# Created on May 7, 2017
+#
+# @author: Akshay Narayan
+#
+# This code is shared under The MIT License
+# -----------------------------------------
+#
+# The MIT License (MIT)
+#
+# Copyright (c) <year> <copyright holders>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
 
-@author: Akshay Narayan
-
-This code is shared under The MIT License
------------------------------------------
-
-The MIT License (MIT)
-
-Copyright (c) <year> <copyright holders>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-"""
 
 import math
 import random
@@ -75,8 +74,8 @@ class Softmax:
         """
         :return: the index of the arm to be pulled (action to be performed)
         """
-        z = sum([math.exp(v/self.temperature) for v in self.values])
-        probs = [math.exp(v/self.temperature)/z for v in self.values]
+        z = sum([math.exp(v / self.temperature) for v in self.values])
+        probs = [math.exp(v / self.temperature) / z for v in self.values]
         return categorical_draws(probs)
 
     def update(self, chosen_arm, reward):
@@ -93,7 +92,7 @@ class Softmax:
         n = self.counts[chosen_arm]
 
         value = self.values[chosen_arm]
-        new_value = ((n-1)/float(n)) * value + (1/float(n)) * reward
+        new_value = ((n - 1) / float(n)) * value + (1 / float(n)) * reward
         self.values[chosen_arm] = new_value
 
 
@@ -104,6 +103,7 @@ class AnnealingSoftMax(Softmax):
     temperature parameter will make Softmax algorithm exploit the best arm more often and settle into 
     its final deterministic strategy for choosing an arm.
     """
+
     def __init__(self, counts, values):
         super(AnnealingSoftMax, self).__init__(0, counts, values)
 
@@ -117,7 +117,7 @@ class AnnealingSoftMax(Softmax):
         :return: the index of the arm to be pulled (action to be performed)
         """
         t = sum(self.counts) + 1
-        self.temperature = 1/math.log(t + 0.000001)
+        self.temperature = 1 / math.log(t + 0.000001)
 
         z = sum([math.exp(v / self.temperature) for v in self.values])
         probs = [math.exp(v / self.temperature) / z for v in self.values]
