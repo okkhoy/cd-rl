@@ -90,3 +90,9 @@ ENV/
 
 # pycharm projects
 .idea
+
+# ignore the output folder
+outputs/
+
+# ignore the logs folder
+log/
