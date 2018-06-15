@@ -7,6 +7,7 @@
 
 """
 
+
 class RLGlueRegistry(object):
     def __init__(self):
         self.agents = {}
@@ -24,6 +25,7 @@ class RLGlueRegistry(object):
     def register_experiment(self, cls):
         self.experiments[cls.name] = cls
         return cls
+
 
 rlglue_registry = RLGlueRegistry()
 register_agent = rlglue_registry.register_agent
