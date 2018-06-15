@@ -15,7 +15,7 @@ class FourierBasis(trivial.TrivialBasis):
     """
 
     def __init__(self, nvars, ranges, order=3):
-        nterms = pow(order + 1.0, nvars)
+        nterms = pow(order + 1, nvars)
         self.numTerms = nterms
         self.order = order
         self.ranges = numpy.array(ranges)
