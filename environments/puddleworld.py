@@ -15,6 +15,10 @@
 #
 
 import numpy
+import logging
+
+from pprint import pformat
+
 from rlglue.environment import EnvironmentLoader as EnvironmentLoader
 from local_rlglue.registry import register_environment
 
@@ -30,21 +34,31 @@ class PuddleWorld(gridworld.Gridworld):
 
         gridworld.Gridworld.__init__(self, size_x=size_x, size_y=size_y, goal_x=goal_x,
                          goal_y=goal_y, noise=noise, reward_noise=reward_noise, random_start=random_start, fudge=fudge)
+        log = logging.getLogger('pyrl.environments.puddleworld')
         self.puddle_penalty = puddle_penalty
         self.puddle_means = map(numpy.array, puddle_means)
         self.puddle_var = map(lambda cov: numpy.linalg.inv(numpy.array(cov).reshape((2,2))), puddle_var)
         self.domain_name = "Continuous PuddleWorld"
+        log.debug("Puddle world: %s", pformat(self.__dict__))
 
     def reset(self):
+        log = logging.getLogger('pyrl.environments.puddleworld.reset')
         if self.random_start:
             self.pos = numpy.random.random((2,)) * self.size
+            log.debug("Random start")
         else:
+            log.debug("Given start position")
             self.pos = numpy.array([0., 0.])
+        log.info("Start position: %s", self.pos)
 
     def takeAction(self, action):
+        log = logging.getLogger('pyrl.environments.puddleworld.takeAction')
+        log.info("Action: %d", action)
         base_reward = gridworld.Gridworld.takeAction(self, action)
         for mu, inv_cov in zip(self.puddle_means, self.puddle_var):
+            log.debug("(mu, inverse covariance) = (%s, %s)", mu, inv_cov)
             base_reward += mvnpdf(self.pos, mu, inv_cov) * self.puddle_penalty
+        log.info("Reward: %f", base_reward)
         return base_reward
 
 
