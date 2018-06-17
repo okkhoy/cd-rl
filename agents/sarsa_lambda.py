@@ -5,10 +5,13 @@ from rlglue.types import Action
 from rlglue.types import Observation
 from rlglue.utils import TaskSpecVRLGLUE3
 
+import logging
 import numpy
 import time
 import copy
 import sys
+
+from pprint import pformat
 
 from local_rlglue.registry import register_agent
 from skeleton_agent import *
@@ -24,6 +27,7 @@ class sarsa_lambda(skeleton_agent):
 
     def init_parameters(self):
         # Initialize algorithm parameters
+        log = logging.getLogger('pyrl.agents.sarsa_lambda')
         self.epsilon = self.params.setdefault('epsilon', 0.01)
         self.alpha = self.params.setdefault('alpha', 0.01)
         self.lmbda = self.params.setdefault('lmbda', 0.7)  # no elgibility traces
@@ -31,6 +35,7 @@ class sarsa_lambda(skeleton_agent):
         self.fa_name = self.params.setdefault('basis', 'trivial')
         self.softmax = self.params.setdefault('softmax', False)
         self.basis = None
+        log.debug("Sarsa Lambda: %s", pformat(self.__dict__))
 
     @classmethod
     def agent_parameters(cls):
@@ -78,6 +83,7 @@ class sarsa_lambda(skeleton_agent):
         """
 
         # (Re)initialize parameters (incase they have been changed during a trial
+        log = logging.getLogger('pyrl.agents.sarsa_lambda.agent_init')
         self.init_parameters()
         # Parse the task specification and set up the weights and such
         TaskSpec = TaskSpecVRLGLUE3.TaskSpecParser(taskSpec)
@@ -86,6 +92,7 @@ class sarsa_lambda(skeleton_agent):
             sys.exit(1)
 
         self.numStates = len(TaskSpec.getDoubleObservations())
+        log.info("Ranges: %s", TaskSpec.getDoubleObservations())
         self.discStates = numpy.array(TaskSpec.getIntObservations())
         self.numDiscStates = int(reduce(lambda a, b: a * (b[1] - b[0] + 1), self.discStates, 1.0))
         self.numActions = TaskSpec.getIntActions()[0][1] + 1
@@ -106,12 +113,17 @@ class sarsa_lambda(skeleton_agent):
         else:
             self.basis = trivial.TrivialBasis(self.numStates, TaskSpec.getDoubleObservations())
 
-        self.weights = numpy.zeros((self.numDiscStates, self.basis.getNumBasisFunctions(), self.numActions))
+        log.debug("Num disc states: %d", self.numDiscStates)
+        numStates = self.basis.getNumBasisFunctions()
+        log.debug("Num states: %d", numStates)
+        log.debug("Num actions: %d", self.numActions)
+        self.weights = numpy.zeros((self.numDiscStates, numStates, self.numActions))
         self.traces = numpy.zeros(self.weights.shape)
         self.init_stepsize(self.weights.shape, self.params)
         # print "Weights:", self.weights
         self.lastAction = Action()
         self.lastObservation = Observation()
+        log.debug("Sarsa Lambda agent after initialization: %s", pformat(self.__dict__))
 
     def getAction(self, state, discState):
         """Get the action under the current policy for the given state.
@@ -123,13 +135,22 @@ class sarsa_lambda(skeleton_agent):
         Returns:
             The current policy action, or a random action with some probability.
         """
-
+        log = logging.getLogger('pyrl.agents.sarsa_lambda.getAction')
         if self.softmax:
-            return self.sample_softmax(state, discState)
+            log.debug("Softmax enabled")
+            softmax_action = self.sample_softmax(state, discState)
+            log.debug("Action to return: %d", softmax_action)
+            return softmax_action
         else:
-            return self.egreedy(state, discState)
+            log.debug("Softmax disabled -- using e-greedy")
+            egreedy_action = self.egreedy(state, discState)
+            log.debug("Action to return: %d", egreedy_action)
+            return egreedy_action
 
     def sample_softmax(self, state, discState):
+        log = logging.getLogger('pyrl.agents.sarsa_lambda.sample_softmax')
+        log.debug("weights: %s", self.weights[discState, :, :].T)
+        log.debug("State: %s", state)
         Q = None
         Q = numpy.dot(self.weights[discState, :, :].T, self.basis.computeFeatures(state))
         Q -= Q.max()
@@ -137,15 +158,21 @@ class sarsa_lambda(skeleton_agent):
         Q /= Q.sum()
 
         Q = Q.cumsum()
-        return numpy.where(Q >= numpy.random.random())[0][0]
+        return_action = numpy.where(Q >= numpy.random.random())[0][0]
+        log.debug("Return action: %d", return_action)
+        return return_action
 
     def egreedy(self, state, discState):
+        log = logging.getLogger('pyrl.agents.sarsa_lambda.egreedy')
         if self.randGenerator.random() < self.epsilon:
-            return self.randGenerator.randint(0, self.numActions - 1)
-        # print self.weights[discState, self.basis.computeFeatures(state), numpy.dot(self.weights[discState,:,:].T, self.basis.computeFeatures(state))
-        # print "sarsaLambda:", numpy.dot(self.weights[discState,:,:].T, self.basis.computeFeatures(state)).argmax()
-        # print self.weights[discState], self.basis.computeFeatures(state), numpy.dot(self.weights[discState,:,:].T, self.basis.computeFeatures(state))
-        return numpy.dot(self.weights[discState, :, :].T, self.basis.computeFeatures(state)).argmax()
+            rand_action = self.randGenerator.randint(0, self.numActions - 1)
+            log.debug("Random action: %d", rand_action)
+            return rand_action
+
+        log.debug("Weights: %s", self.weights[discState, :, :].T)
+        return_action = numpy.dot(self.weights[discState, :, :].T, self.basis.computeFeatures(state)).argmax()
+        log.debug("Return action: %d", return_action)
+        return return_action
 
     def getDiscState(self, state):
         """Return the integer value representing the current discrete state.
@@ -180,7 +207,7 @@ class sarsa_lambda(skeleton_agent):
         Returns:
             The first action the RL agent chooses to take, represented as an RLGlue Action object.
         """
-
+        log = logging.getLogger('pyrl.agents.sarsa_lambda.agent_start')
         theState = numpy.array(list(observation.doubleArray))
         thisIntAction = self.getAction(theState, self.getDiscState(observation.intArray))
 
@@ -192,11 +219,17 @@ class sarsa_lambda(skeleton_agent):
 
         self.lastAction = copy.deepcopy(returnAction)
         self.lastObservation = copy.deepcopy(observation)
+        log.debug("Action: %d", thisIntAction)
+        log.debug("Start State: %s", theState)
+        log.debug("Traces: %s", self.traces)
         return returnAction
 
     def update_traces(self, phi_t, phi_tp):
+        log = logging.getLogger('pyrl.agents.sarsa_lambda.update_traces')
+        log.debug("\nphi_t: %s \n phi_tp: %s", phi_t, phi_tp)
         self.traces *= self.gamma * self.lmbda
         self.traces += phi_t
+        log.debug("Traces: %s", self.traces)
 
     def agent_step(self, reward, observation):
         """Take one step in an episode for the agent, as the result of taking the last action.
@@ -208,7 +241,7 @@ class sarsa_lambda(skeleton_agent):
         Returns:
             The next action the RL agent chooses to take, represented as an RLGlue Action object.
         """
-
+        log = logging.getLogger('pyrl.agents.sarsa_lambda.agent_step')
         newState = numpy.array(list(observation.doubleArray))
         lastState = numpy.array(list(self.lastObservation.doubleArray))
         lastAction = self.lastAction.intArray[0]
@@ -234,6 +267,13 @@ class sarsa_lambda(skeleton_agent):
         self.lastObservation = copy.deepcopy(observation)
         # print "new state:", newDiscState,
         # print "last state:", lastDiscState
+        log.debug("Last State: %s", lastState)
+        log.debug("Last Action: %d", lastAction)
+        log.debug("New Action: %d", newIntAction)
+        log.debug("Current State: %s", newState)
+        log.debug("Traces: %s", self.traces)
+        log.debug("Weights: %s", self.weights)
+
         return returnAction
 
     def init_stepsize(self, weights_shape, params):
